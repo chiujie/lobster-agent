@@ -1,66 +1,36 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🦞 AI 龍蝦 Agent</title>
+    <title>🦞 Free Lobster AI</title>
     <style>
-        body {
-            background: #0f172a;
-            color: white;
-            font-family: Arial;
-            text-align: center;
-            padding: 40px;
-        }
-        input {
-            width: 60%;
-            padding: 10px;
-            border-radius: 10px;
-            border: none;
-        }
-        button {
-            padding: 10px 20px;
-            border-radius: 10px;
-            border: none;
-            background: #38bdf8;
-            color: black;
-            cursor: pointer;
-        }
-        #chat {
-            margin-top: 20px;
-        }
-        .msg {
-            margin: 10px;
-        }
+        body { background: #0f172a; color: white; font-family: Arial; text-align: center; padding: 40px; }
+        input { width: 60%; padding: 10px; border-radius: 10px; border: none; }
+        button { padding: 10px 20px; border-radius: 10px; border: none; background: #38bdf8; color: black; cursor: pointer; }
+        #chat { margin-top: 20px; }
+        .msg { margin: 10px; }
     </style>
 </head>
 <body>
-
-<h1>🦞 AI 龍蝦 Agent</h1>
-
+<h1>🦞 Free AI Lobster Agent</h1>
 <input id="msg" placeholder="問龍蝦任何問題..." />
 <button onclick="send()">送出</button>
-
 <div id="chat"></div>
 
 <script>
 async function send() {
     let input = document.getElementById("msg");
     let chat = document.getElementById("chat");
-
     let userText = input.value;
     chat.innerHTML += `<div class="msg">👤 ${userText}</div>`;
-
     let res = await fetch("/chat", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({message: userText})
     });
-
     let data = await res.json();
-
     chat.innerHTML += `<div class="msg">🦞 ${data.reply}</div>`;
     input.value = "";
 }
 </script>
-
 </body>
 </html>
