@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>🦞 免費 AI 龍蝦 Agent</title>
+    <title>🦞 AI 龍蝦 Agent</title>
     <style>
         body {
             background: #0f172a;
@@ -26,21 +26,25 @@
         }
         #chat {
             margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
             text-align: left;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
+            padding: 10px;
+            border: 1px solid #38bdf8;
+            border-radius: 10px;
+            background: #1e293b;
         }
         .msg {
-            margin: 10px;
+            margin: 10px 0;
         }
-        .user { color: #38bdf8; }
-        .bot { color: #fbbf24; }
+        .user { color: #facc15; }
+        .lobster { color: #38bdf8; }
+        .thinking { color: #94a3b8; font-style: italic; }
     </style>
 </head>
 <body>
 
-<h1>🦞 免費 AI 龍蝦 Agent</h1>
+<h1>🦞 AI 龍蝦 Agent</h1>
 
 <input id="msg" placeholder="問龍蝦任何問題..." />
 <button onclick="send()">送出</button>
@@ -53,10 +57,21 @@ async function send() {
     let chat = document.getElementById("chat");
 
     let userText = input.value;
-    if (!userText) return;
+    if (!userText.trim()) return;
 
+    // 顯示使用者訊息
     chat.innerHTML += `<div class="msg user">👤 ${userText}</div>`;
 
+    // 顯示思考中提示
+    let thinkingMsg = document.createElement("div");
+    thinkingMsg.className = "msg thinking";
+    thinkingMsg.innerText = "🦞 🦞 龍蝦暫時思考中，請稍後再試...";
+    chat.appendChild(thinkingMsg);
+
+    // 自動滾動到底部
+    chat.scrollTop = chat.scrollHeight;
+
+    // 送到後端
     let res = await fetch("/chat", {
         method: "POST",
         headers: {"Content-Type": "application/json"},
@@ -64,7 +79,16 @@ async function send() {
     });
 
     let data = await res.json();
-    chat.innerHTML += `<div class="msg bot">🦞 ${data.reply}</div>`;
+
+    // 移除思考提示
+    thinkingMsg.remove();
+
+    // 顯示 AI 回覆
+    chat.innerHTML += `<div class="msg lobster">🦞 ${data.reply}</div>`;
+
+    // 滾動到底部
+    chat.scrollTop = chat.scrollHeight;
+
     input.value = "";
 }
 </script>
