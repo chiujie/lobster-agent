@@ -1,13 +1,13 @@
 from flask import Flask, request, jsonify, render_template
-import requests
+from transformers import AutoModelForCausalLM, AutoTokenizer
+import torch
 
 app = Flask(__name__)
 
-API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
-
-def query(payload):
-    response = requests.post(API_URL, json=payload)
-    return response.json()
+# 使用免費 HuggingFace 模型
+MODEL_NAME = "tiiuae/falcon-7b-instruct"  # 或選小一點的免費模型如 "gpt2"
+tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
 @app.route("/")
 def home():
@@ -17,16 +17,13 @@ def home():
 def chat():
     user_msg = request.json.get("message")
 
-    output = query({
-        "inputs": f"請用可愛的AI龍蝦語氣回答：{user_msg}"
+    inputs = tokenizer.encode(user_msg + tokenizer.eos_token, return_tensors="pt")
+    outputs = model.generate(inputs, max_length=200, do_sample=True, top_p=0.95, top_k=50)
+    reply = tokenizer.decode(outputs[0], skip_special_tokens=True)
+
+    return jsonify({
+        "reply": reply
     })
-
-    try:
-        reply = output[0]["generated_text"]
-    except:
-        reply = "🦞 龍蝦暫時思考中，請稍後再試..."
-
-    return jsonify({"reply": reply})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
