@@ -1,10 +1,13 @@
 from flask import Flask, request, jsonify, render_template
-import os
-from openai import OpenAI
+import requests
 
 app = Flask(__name__)
 
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+API_URL = "https://api-inference.huggingface.co/models/google/flan-t5-base"
+
+def query(payload):
+    response = requests.post(API_URL, json=payload)
+    return response.json()
 
 @app.route("/")
 def home():
@@ -14,17 +17,16 @@ def home():
 def chat():
     user_msg = request.json.get("message")
 
-    response = client.chat.completions.create(
-        model="gpt-4o-mini",
-        messages=[
-            {"role": "system", "content": "你是一隻AI龍蝦助手，語氣可愛但專業，會幫助使用者解決問題"},
-            {"role": "user", "content": user_msg}
-        ]
-    )
-
-    return jsonify({
-        "reply": response.choices[0].message.content
+    output = query({
+        "inputs": f"請用可愛的AI龍蝦語氣回答：{user_msg}"
     })
+
+    try:
+        reply = output[0]["generated_text"]
+    except:
+        reply = "🦞 龍蝦暫時思考中，請稍後再試..."
+
+    return jsonify({"reply": reply})
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=10000)
