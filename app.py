@@ -88,20 +88,33 @@ def task():
         "否則請正常聊天。"
     )
 
-    headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
+    # 加上 Referer 標頭，這是 OpenRouter 官方建議的
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_KEY}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://render.com", # 告訴 OpenRouter 你從哪來
+        "X-Title": "Lobster Agent"
+    }
+    
     payload = {
-        "model": "google/gemini-2.0-flash-001",
-        "messages": [{"role": "system", "content": system_prompt}, {"role": "user", "content": user_msg}]
+        # 換一個更穩定的免費模型試試看
+        "model": "meta-llama/llama-3.1-8b-instruct:free", 
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_msg}
+        ]
     }
     
     try:
-        print("🧠 [思考中] 呼叫 AI 大腦...")
-        resp = requests.post("https://openrouter.ai/v1/chat/completions", headers=headers, json=payload, timeout=25)
+        print("🧠 [思考中] 呼叫 OpenRouter...")
+        resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=25)
+        
+        # 這是關鍵！如果不是 200，就印出錯誤碼
+        if resp.status_code != 200:
+            print(f"❌ 大腦連線失敗，狀態碼：{resp.status_code}，內容：{resp.text}")
+            return jsonify({"reply": f"🦞 龍蝦大腦斷線了（錯誤碼：{resp.status_code}），請稍後再試。"})
+
         data = resp.json()
-
-        if "error" in data:
-            return jsonify({"reply": f"大腦報錯：{data['error'].get('message')}"})
-
         ai_reply = data["choices"][0]["message"]["content"]
         print(f"🤖 [AI 回覆]：{ai_reply}")
         
@@ -112,18 +125,15 @@ def task():
                 subject = parts[2].strip()
                 content = parts[3].strip()
                 
-                if not SENDER_EMAIL or not SENDER_PASSWORD:
-                    return jsonify({"reply": "🦞 我還沒有寄信權限，請在 Render 設定環境變數。"})
-                
                 success = send_lobster_email(to_email, subject, content)
                 if success:
-                    return jsonify({"reply": f"✅ 任務完成！信件已寄給 **{to_email}**。"})
+                    return jsonify({"reply": f"✅ 任務完成！信已寄給 **{to_email}**。"})
                 else:
-                    return jsonify({"reply": "❌ 寄信失敗，請檢查應用程式密碼設定。"})
+                    return jsonify({"reply": "❌ 寄信失敗，請檢查 Gmail 應用程式密碼。"})
         
         return jsonify({"reply": ai_reply})
     except Exception as e:
-        print(f"💥 [意外錯誤]：{e}")
+        print(f"💥 [意外錯誤]：{str(e)}")
         return jsonify({"reply": f"龍蝦發生意外：{str(e)}"})
 
 if __name__ == "__main__":
