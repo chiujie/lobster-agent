@@ -14,20 +14,21 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 # 2. 寄信功能
 def send_lobster_email(to_email, subject, content):
     try:
-        print(f"🦞 [寄信中] 正在連線至 Gmail 伺服器...")
+        print(f"🦞 [嘗試 465 埠] 正在連線...")
         msg = MIMEText(content)
         msg['Subject'] = subject
         msg['From'] = SENDER_EMAIL
         msg['To'] = to_email
 
-        with smtplib.SMTP('smtp.gmail.com', 587, timeout=20) as server:
-            server.starttls() 
+        # 使用 SMTP_SSL 直接建立加密連線
+        with smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=20) as server:
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, [to_email], msg.as_string())
-        print(f"🦞 [成功] 信件已飛向 {to_email}")
+        
+        print(f"✅ 寄信成功！")
         return True
     except Exception as e:
-        print(f"❌ [失敗] 錯誤原因：{e}")
+        print(f"❌ 寄信失敗，詳細錯誤：{e}")
         return False
 
 # 3. 前端網頁介面
