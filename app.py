@@ -108,17 +108,19 @@ def task():
         if ai_reply.startswith("SEND_EMAIL|"):
             parts = ai_reply.split("|")
             if len(parts) >= 4:
-                to_mail = parts[1].strip()
+                # 這裡統一把變數改成 to_email (跟下面呼叫的一樣)
+                to_email = parts[1].strip() 
                 subject = parts[2].strip()
                 content = parts[3].strip()
                 
-                # 執行寄信
+                # 檢查權限
                 if not SENDER_EMAIL or not SENDER_PASSWORD:
                     return jsonify({"reply": "🦞 我還沒有寄信的權限！請去 Render 設定 SENDER_EMAIL 和 SENDER_PASSWORD。"})
                 
+                # 執行寄信 (這裡呼叫的名稱也是 to_email)
                 success = send_lobster_email(to_email, subject, content)
                 if success:
-                    return jsonify({"reply": f"任務完成！我已經把信寄給了 **{to_mail}**。<br>主旨：{subject}<br>內容：{content}"})
+                    return jsonify({"reply": f"任務完成！我已經把信寄給了 **{to_email}**。<br>主旨：{subject}<br>內容：{content}"})
                 else:
                     return jsonify({"reply": "🦞 寄信失敗了... 請確認你的應用程式密碼是否正確。"})
         
