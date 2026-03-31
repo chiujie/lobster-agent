@@ -6,7 +6,7 @@ from flask import Flask, request, jsonify, render_template_string
 
 app = Flask(__name__)
 
-# 1. 環境變數
+# 1. 從環境變數讀取資料
 OPENROUTER_KEY = os.getenv("OPENROUTER_API_KEY")
 SENDER_EMAIL = os.getenv("SENDER_EMAIL")     
 SENDER_PASSWORD = os.getenv("SENDER_PASSWORD") 
@@ -14,7 +14,7 @@ SENDER_PASSWORD = os.getenv("SENDER_PASSWORD")
 # 2. 寄信功能
 def send_lobster_email(to_email, subject, content):
     try:
-        print(f"🦞 [寄信中] 連線至 Gmail...")
+        print(f"🦞 [寄信中] 正在連線至 Gmail 伺服器...")
         msg = MIMEText(content)
         msg['Subject'] = subject
         msg['From'] = SENDER_EMAIL
@@ -24,32 +24,36 @@ def send_lobster_email(to_email, subject, content):
             server.starttls() 
             server.login(SENDER_EMAIL, SENDER_PASSWORD)
             server.sendmail(SENDER_EMAIL, [to_email], msg.as_string())
-        print(f"🦞 [成功] 已寄給 {to_email}")
+        print(f"🦞 [成功] 信件已飛向 {to_email}")
         return True
     except Exception as e:
-        print(f"❌ [失敗] {e}")
+        print(f"❌ [失敗] 錯誤原因：{e}")
         return False
 
-# 3. 網頁介面
+# 3. 前端網頁介面
 HTML_PAGE = """
 <!DOCTYPE html>
 <html>
-<head><meta charset="utf-8"><title>🦞 龍蝦助理</title></head>
+<head><meta charset="utf-8"><title>🦞 龍蝦自動執行員</title></head>
 <body style="text-align:center; padding:50px; background:#0f172a; color:white; font-family:sans-serif;">
     <h1>🦞 萬能龍蝦 Agent</h1>
+    <p>指令範例：寄信給 1121410902@mail.hwu.edu.tw，主旨是你好，內容是龍蝦進化了。</p>
     <div id="chat-box" style="background:#1e293b; height:300px; overflow-y:auto; padding:20px; border-radius:10px; margin-bottom:20px; text-align:left;"></div>
-    <input id="msg" style="width:70%; padding:15px; border-radius:5px;" placeholder="對龍蝦下令... (例如: 幫我寄信給 xxx@gmail.com)" onkeypress="if(event.keyCode==13) send()"/>
-    <button onclick="send()" style="padding:15px; background:#38bdf8; border:none; cursor:pointer; font-weight:bold;">執行</button>
+    <input id="msg" style="width:70%; padding:15px; border-radius:5px; border:none;" placeholder="對龍蝦下令..." onkeypress="if(event.keyCode==13) send()"/>
+    <button onclick="send()" style="padding:15px 30px; background:#38bdf8; border:none; cursor:pointer; font-weight:bold;">執行</button>
+
     <script>
     async function send() {
         let input = document.getElementById("msg");
         let box = document.getElementById("chat-box");
         let text = input.value;
         if(!text) return;
+
         box.innerHTML += `<div>👤 你：${text}</div>`;
         box.innerHTML += `<div id='loading'>🦞 龍蝦正在揮動鉗子...</div>`;
         input.value = "";
         box.scrollTop = box.scrollHeight;
+
         try {
             let res = await fetch("/task", {
                 method:"POST",
@@ -60,7 +64,7 @@ HTML_PAGE = """
             document.getElementById('loading').remove();
             box.innerHTML += `<div style="color:#38bdf8;">🦞 龍蝦：${data.reply}</div>`;
         } catch (e) {
-            document.getElementById('loading').innerText = "❌ 出錯了，請查看 Logs。";
+            document.getElementById('loading').innerText = "❌ 發生連線錯誤，請查看日誌。";
         }
         box.scrollTop = box.scrollHeight;
     }
@@ -76,9 +80,14 @@ def home():
 @app.route("/task", methods=["POST"])
 def task():
     user_msg = request.json.get("message", "")
-    print(f"📬 收到任務：{user_msg}")
+    print(f"--- 📬 新指令：{user_msg} ---")
     
-    system_prompt = "你是一隻萬能龍蝦。若使用者要寄信，請回覆格式：SEND_EMAIL|信箱|主旨|內容。否則正常聊天。"
+    system_prompt = (
+        "你是一隻萬能的 AI 龍蝦。如果使用者想要寄信，請嚴格按照以下格式回覆："
+        "SEND_EMAIL|收件人信箱|郵件主旨|郵件內容。"
+        "否則請正常聊天。"
+    )
+
     headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
     payload = {
         "model": "google/gemini-2.0-flash-001",
@@ -86,17 +95,38 @@ def task():
     }
     
     try:
-        resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload, timeout=25)
+        print("🧠 [思考中] 呼叫 AI 大腦...")
+        resp = requests.post("https://openrouter.ai/v1/chat/completions", headers=headers, json=payload, timeout=25)
         data = resp.json()
+
+        if "error" in data:
+            return jsonify({"reply": f"大腦報錯：{data['error'].get('message')}"})
+
         ai_reply = data["choices"][0]["message"]["content"]
+        print(f"🤖 [AI 回覆]：{ai_reply}")
         
         if "SEND_EMAIL|" in ai_reply:
             parts = ai_reply.split("|")
             if len(parts) >= 4:
-                mail_to = parts[1].strip()
-                mail_sub = parts[2].strip()
-                mail_con = parts[3].strip()
-                if send_lobster_email(mail_to, mail_sub, mail_con):
-                    return jsonify({"reply": f"✅ 任務完成！信已寄給 **{mail_to}**。"})
+                to_email = parts[1].strip()
+                subject = parts[2].strip()
+                content = parts[3].strip()
+                
+                if not SENDER_EMAIL or not SENDER_PASSWORD:
+                    return jsonify({"reply": "🦞 我還沒有寄信權限，請在 Render 設定環境變數。"})
+                
+                success = send_lobster_email(to_email, subject, content)
+                if success:
+                    return jsonify({"reply": f"✅ 任務完成！信件已寄給 **{to_email}**。"})
                 else:
-                    return jsonify({"reply": "❌ 寄信失敗，請檢查密碼。
+                    return jsonify({"reply": "❌ 寄信失敗，請檢查應用程式密碼設定。"})
+        
+        return jsonify({"reply": ai_reply})
+    except Exception as e:
+        print(f"💥 [意外錯誤]：{e}")
+        return jsonify({"reply": f"龍蝦發生意外：{str(e)}"})
+
+if __name__ == "__main__":
+    # Render 會自動指定 PORT
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
