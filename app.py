@@ -86,7 +86,8 @@ def task():
     }
     
     payload = {
-        "model": "google/gemini-2.0-flash-exp:free", 
+        # 將原本的 gemini-2.0-flash-exp:free 換成下面其中一個
+        "model": "google/gemini-2.0-flash-001", 
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
