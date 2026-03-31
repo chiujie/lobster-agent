@@ -97,8 +97,8 @@ def task():
     }
     
     payload = {
-        # 換一個更穩定的免費模型試試看
-        "model": "meta-llama/llama-3.1-8b-instruct:free", 
+        # 建議換成下面這個，這是 2026 年最常用的 Flash 模型
+        "model": "google/gemini-2.0-flash-001", 
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
