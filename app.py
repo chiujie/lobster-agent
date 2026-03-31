@@ -73,7 +73,6 @@ def home():
 def task():
     user_msg = request.json.get("message", "")
     
-    # 指令給 AI：讓它判斷是否要寄信，並輸出特定格式
     system_prompt = (
         "你是一隻萬能的 AI 龍蝦。如果使用者想要寄信，請嚴格按照以下格式回覆："
         "SEND_EMAIL|收件人信箱|郵件主旨|郵件內容。"
@@ -81,9 +80,13 @@ def task():
         "如果只是普通聊天，請正常回覆。"
     )
 
-    headers = {"Authorization": f"Bearer {OPENROUTER_KEY}", "Content-Type": "application/json"}
+    headers = {
+        "Authorization": f"Bearer {OPENROUTER_KEY}",
+        "Content-Type": "application/json"
+    }
+    
     payload = {
-        "model": "google/gemini-2.0-flash-exp:free", # 使用免費模型
+        "model": "google/gemini-2.0-flash-exp:free", 
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_msg}
@@ -92,9 +95,15 @@ def task():
     
     try:
         resp = requests.post("https://openrouter.ai/api/v1/chat/completions", headers=headers, json=payload)
-        ai_reply = resp.json()["choices"][0]["message"]["content"]
+        data = resp.json()
+
+        # 如果 OpenRouter 回傳錯誤，這裡會抓到並顯示出來
+        if "error" in data:
+            return jsonify({"reply": f"🦞 龍蝦的大腦報錯了：{data['error'].get('message', '未知錯誤')}"})
+
+        ai_reply = data["choices"][0]["message"]["content"]
         
-        # 檢查 AI 是否決定寄信
+        # 檢查是否為寄信指令
         if ai_reply.startswith("SEND_EMAIL|"):
             parts = ai_reply.split("|")
             if len(parts) >= 4:
@@ -103,15 +112,15 @@ def task():
                 content = parts[3].strip()
                 
                 # 執行寄信
-                success = send_lobster_email(to_mail, subject, content)
+                if not SENDER_EMAIL or not SENDER_PASSWORD:
+                    return jsonify({"reply": "🦞 我還沒有寄信的權限！請去 Render 設定 SENDER_EMAIL 和 SENDER_PASSWORD。"})
+                
+                success = send_lobster_email(to_email, subject, content)
                 if success:
                     return jsonify({"reply": f"任務完成！我已經把信寄給了 **{to_mail}**。<br>主旨：{subject}<br>內容：{content}"})
                 else:
-                    return jsonify({"reply": "寄信失敗了... 請檢查後台的 SENDER_EMAIL 與應用程式密碼設定。"})
+                    return jsonify({"reply": "🦞 寄信失敗了... 請確認你的應用程式密碼是否正確。"})
         
         return jsonify({"reply": ai_reply})
     except Exception as e:
-        return jsonify({"reply": f"龍蝦腦袋打結了：{str(e)}"})
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 10000)))
+        return jsonify({"reply": f"🦞 龍蝦發生意外錯誤：{str(e)}"})
